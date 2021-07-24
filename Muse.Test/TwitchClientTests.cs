@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Moq;
 using Moq.Protected;
 using Muse.Models.Twitch;
@@ -16,14 +17,12 @@ namespace Muse.Test
     public class TwitchClientTests
     {
         [Fact]
-        public void GetAppAccessToken_ShouldRequestAndReturnsToken()
+        public async void GetAppAccessToken_ShouldRequestAndReturnsToken()
         {
-            string mockAccessToken = GenerateAccessToken();
-            int mockExpiryIn = GenerateExpiryInSeconds();
-            TokenResponse tokenResponse = new TokenResponse
+            TokenResponse token = new TokenResponse
             {
-                accessToken = mockAccessToken,
-                expiresIn = mockExpiryIn,
+                accessToken = GenerateRandomString(),
+                expiresIn = GenerateExpiryInSeconds(),
                 scope = new string[]
                 {
                     "user:read:follows"
@@ -35,22 +34,39 @@ namespace Muse.Test
             var response = new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(JsonConvert.SerializeObject(tokenResponse))
+                Content = new StringContent(JsonConvert.SerializeObject(token))
             };
 
-            var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+            TwitchSettings settings = new TwitchSettings
+            {
+                clientId = GenerateRandomString(),
+                clientSecret = GenerateRandomString(),
+                scope = new string[]
+    {
+                    "user:read:follows"
+    }
+            };
+
+            // Mock http response
+            Mock<HttpMessageHandler> mockHttpMessageHandler = new Mock<HttpMessageHandler>();
             mockHttpMessageHandler.Protected().Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>()).ReturnsAsync(response).Verifiable();
+            // Mock settings
+            Mock<IOptions<TwitchSettings>> mockSettings = new Mock<IOptions<TwitchSettings>>();
+
+            mockSettings.Setup(c => c.Value).Returns(settings);
 
             var httpClient = new HttpClient(mockHttpMessageHandler.Object);
+            //var mockSettings = Options.Create(settings);
 
-            var twitchClient = new TwitchClient(httpClient);
+            TwitchClient twitchClient = new TwitchClient(httpClient, mockSettings.Object);
+            TokenResponse accessTokenResponse = await twitchClient.GetAppAccessToken();
 
-            var accessTokenResponse = twitchClient.GetAppAccessToken();
-
-            Assert.Equal(tokenResponse, accessTokenResponse);
+            Assert.Equal(token.accessToken, accessTokenResponse.accessToken);
         }
 
-        private string GenerateAccessToken()
+
+
+        private string GenerateRandomString()
         {
             const string chars = "abcdefghijklmnopqrstuvwxyz0123456789";
             return new string(Enumerable.Repeat(chars, 30)
