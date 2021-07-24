@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using Muse.Models.Twitch;
 using Muse.Services;
 using System;
 using System.Collections.Generic;
@@ -27,13 +28,18 @@ namespace Muse
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-
             services.AddControllers();
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Muse", Version = "v1" });
             });
             services.AddHttpClient<TwitchClient>(c => c.BaseAddress = new Uri("https://api.twitch.tv"));
+            services.Configure<TwitchSettings>(Configuration.GetSection("Twitch"));
+            services.Configure<TwitchSettings>(config =>
+            {
+                config.clientId = Configuration["Muse:TwitchClientId"];
+                config.clientSecret = Configuration["Muse:TwitchClientSecret"];
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
