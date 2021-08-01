@@ -1,6 +1,8 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.Protected;
+using Muse.Data;
 using Muse.Models.Twitch;
 using Muse.Services;
 using Newtonsoft.Json;
@@ -17,21 +19,21 @@ namespace Muse.Test
     public class TwitchClientTests
     {
         [Fact]
-        public async void GetAppAccessToken_ShouldRequestAndReturnsToken()
+        public async void RequestAppAccessToken_ShouldRequestAndReturnsToken()
         {
             TokenResponse token = new TokenResponse
             {
-                accessToken = GenerateRandomString(),
-                expiresIn = GenerateExpiryInSeconds(),
-                scope = new string[]
+                AccessToken = GenerateRandomString(),
+                ExpiresIn = GenerateExpiryInSeconds(),
+                Scope = new string[]
                 {
                     "user:read:follows"
                 },
-                tokenType = "bearer"
+                TokenType = "bearer"
 
             };
 
-            var response = new HttpResponseMessage
+            HttpResponseMessage response = new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.OK,
                 Content = new StringContent(JsonConvert.SerializeObject(token))
@@ -39,12 +41,12 @@ namespace Muse.Test
 
             TwitchSettings settings = new TwitchSettings
             {
-                clientId = GenerateRandomString(),
-                clientSecret = GenerateRandomString(),
-                scope = new string[]
-    {
+                ClientId = GenerateRandomString(),
+                ClientSecret = GenerateRandomString(),
+                Scope = new string[]
+                {
                     "user:read:follows"
-    }
+                }
             };
 
             // Mock http response
@@ -58,10 +60,39 @@ namespace Muse.Test
             var httpClient = new HttpClient(mockHttpMessageHandler.Object);
             //var mockSettings = Options.Create(settings);
 
-            TwitchClient twitchClient = new TwitchClient(httpClient, mockSettings.Object);
-            TokenResponse accessTokenResponse = await twitchClient.GetAppAccessToken();
+            TwitchClient twitchClient = new TwitchClient(httpClient, mockSettings.Object, null);
+            TokenResponse accessTokenResponse = await twitchClient.RequestAppAccessToken();
 
-            Assert.Equal(token.accessToken, accessTokenResponse.accessToken);
+            Assert.Equal(token.AccessToken, accessTokenResponse.AccessToken);
+        }
+
+        [Fact]
+        public async Task SaveAccessToken_ShouldSaveAccessTokenInDatabase()
+        {
+            string randomToken = GenerateRandomString();
+            int expiryTime = GenerateExpiryInSeconds();
+            TokenResponse token = new TokenResponse
+            {
+                AccessToken = randomToken,
+                ExpiresIn = expiryTime,
+                Scope = new string[]
+                {
+                    "user:read:follows",
+                    "user:read:subscriptions"
+                },
+                TokenType = "bearer"
+
+            };
+
+            IDbContextFactory<DataContext> contextFactory = TestData.GetDbContextFactory();
+            using DataContext context = contextFactory.CreateDbContext();
+
+            TwitchClient twitchClient = new TwitchClient(null, null, contextFactory);
+
+            await twitchClient.SaveAccessToken(token);
+
+            string databaseToken = context.TwitchTokens.FirstOrDefault(t => t.AccessToken == randomToken).AccessToken;
+            Assert.Equal(databaseToken, randomToken);
         }
 
 

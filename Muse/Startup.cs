@@ -2,11 +2,13 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using Muse.Data;
 using Muse.Models.Twitch;
 using Muse.Services;
 using System;
@@ -28,6 +30,11 @@ namespace Muse
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            string connectionString = Configuration.GetConnectionString("DefaultConnection");
+            services.AddDbContextFactory<DataContext>(
+                dbContextOptions => dbContextOptions
+                .UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), mySqlOptions =>
+                    mySqlOptions.EnableStringComparisonTranslations()));
             services.AddControllers();
             services.AddSwaggerGen(c =>
             {
@@ -37,8 +44,8 @@ namespace Muse
             services.Configure<TwitchSettings>(Configuration.GetSection("Twitch"));
             services.Configure<TwitchSettings>(config =>
             {
-                config.clientId = Configuration["Muse:TwitchClientId"];
-                config.clientSecret = Configuration["Muse:TwitchClientSecret"];
+                config.ClientId = Configuration["Muse:TwitchClientId"];
+                config.ClientSecret = Configuration["Muse:TwitchClientSecret"];
             });
         }
 

@@ -7,8 +7,8 @@ namespace Muse.Models.Twitch
 {
     public class TwitchSettings
     {
-        public string clientId { get; set; }
-        public string clientSecret { get; set; }
-        public string[] scope { get; set; }
+        public string ClientId { get; set; }
+        public string ClientSecret { get; set; }
+        public string[] Scope { get; set; }
     }
 }
